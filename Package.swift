@@ -25,7 +25,7 @@ let cgrpcZlibProductName = "CGRPCZlib"
 let grpcTargetName = grpcProductName
 let cgrpcZlibTargetName = cgrpcZlibProductName
 
-let includeNIOSSL = ProcessInfo.processInfo.environment["GRPC_NO_NIO_SSL"] == nil
+let includeNIOSSL = false
 
 #if swift(>=5.6)
 // swift-argument-parser raised its minimum Swift version in 1.1.0 but
