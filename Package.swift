@@ -54,11 +54,15 @@ let packageDependencies: [Package.Dependency] = [
     url: "https://github.com/apple/swift-nio-extras.git",
     from: "1.4.0"
   ),
-  .package(
-    name: "SwiftProtobuf",
-    url: "https://github.com/apple/swift-protobuf.git",
-    from: "1.19.0"
-  ),
+//  .package(
+//    name: "SwiftProtobuf",
+//    url: "https://github.com/apple/swift-protobuf.git",
+//    from: "1.19.0"
+//  ),
+    .package(
+      url: "https://github.com/Shedward/minimal-swift-protobuf.git",
+      .exactItem("1.19.0-min4")
+    ),
   .package(
     url: "https://github.com/apple/swift-log.git",
     from: "1.4.0"
@@ -81,7 +85,6 @@ extension Target.Dependency {
   // Target dependencies; external
   static let grpc: Self = .target(name: grpcTargetName)
   static let cgrpcZlib: Self = .target(name: cgrpcZlibTargetName)
-  static let protocGenGRPCSwift: Self = .target(name: "protoc-gen-grpc-swift")
 
   // Target dependencies; internal
   static let grpcSampleData: Self = .target(name: "GRPCSampleData")
@@ -89,9 +92,6 @@ extension Target.Dependency {
   static let echoImplementation: Self = .target(name: "EchoImplementation")
   static let helloWorldModel: Self = .target(name: "HelloWorldModel")
   static let routeGuideModel: Self = .target(name: "RouteGuideModel")
-  static let interopTestModels: Self = .target(name: "GRPCInteroperabilityTestModels")
-  static let interopTestImplementation: Self =
-    .target(name: "GRPCInteroperabilityTestsImplementation")
 
   // Product dependencies
   static let argumentParser: Self = .product(
@@ -117,11 +117,7 @@ extension Target.Dependency {
     package: "swift-nio-transport-services"
   )
   static let logging: Self = .product(name: "Logging", package: "swift-log")
-  static let protobuf: Self = .product(name: "SwiftProtobuf", package: "SwiftProtobuf")
-  static let protobufPluginLibrary: Self = .product(
-    name: "SwiftProtobufPluginLibrary",
-    package: "SwiftProtobuf"
-  )
+  static let protobuf: Self = .product(name: "SwiftProtobuf", package: "minimal-swift-protobuf")
 }
 
 // MARK: - Targets
@@ -157,17 +153,6 @@ extension Target {
     ]
   )
 
-  static let protocGenGRPCSwift: Target = .executableTarget(
-    name: "protoc-gen-grpc-swift",
-    dependencies: [
-      .protobuf,
-      .protobufPluginLibrary,
-    ],
-    exclude: [
-      "README.md",
-    ]
-  )
-
   static let grpcTests: Target = .testTarget(
     name: "GRPCTests",
     dependencies: [
@@ -175,8 +160,6 @@ extension Target {
       .echoModel,
       .echoImplementation,
       .helloWorldModel,
-      .interopTestModels,
-      .interopTestImplementation,
       .grpcSampleData,
       .nioCore,
       .nioConcurrencyHelpers,
@@ -195,216 +178,11 @@ extension Target {
     ]
   )
 
-  static let interopTestModels: Target = .target(
-    name: "GRPCInteroperabilityTestModels",
-    dependencies: [
-      .grpc,
-      .nio,
-      .protobuf,
-    ],
-    exclude: [
-      "README.md",
-      "generate.sh",
-      "src/proto/grpc/testing/empty.proto",
-      "src/proto/grpc/testing/empty_service.proto",
-      "src/proto/grpc/testing/messages.proto",
-      "src/proto/grpc/testing/test.proto",
-      "unimplemented_call.patch",
-    ]
-  )
-
-  static let interopTestImplementation: Target = .target(
-    name: "GRPCInteroperabilityTestsImplementation",
-    dependencies: [
-      .grpc,
-      .interopTestModels,
-      .nioCore,
-      .nioPosix,
-      .nioHTTP1,
-      .logging,
-    ].appending(
-      .nioSSL, if: includeNIOSSL
-    )
-  )
-
-  static let interopTests: Target = .executableTarget(
-    name: "GRPCInteroperabilityTests",
-    dependencies: [
-      .grpc,
-      .interopTestImplementation,
-      .nioCore,
-      .nioPosix,
-      .logging,
-      .argumentParser,
-    ]
-  )
-
-  static let backoffInteropTest: Target = .executableTarget(
-    name: "GRPCConnectionBackoffInteropTest",
-    dependencies: [
-      .grpc,
-      .interopTestModels,
-      .nioCore,
-      .nioPosix,
-      .logging,
-      .argumentParser,
-    ],
-    exclude: [
-      "README.md",
-    ]
-  )
-
-  static let perfTests: Target = .executableTarget(
-    name: "GRPCPerformanceTests",
-    dependencies: [
-      .grpc,
-      .grpcSampleData,
-      .nioCore,
-      .nioEmbedded,
-      .nioPosix,
-      .nioHTTP2,
-      .argumentParser,
-    ]
-  )
-
   static let grpcSampleData: Target = .target(
     name: "GRPCSampleData",
     dependencies: includeNIOSSL ? [.nioSSL] : [],
     exclude: [
       "bundle.p12",
-    ]
-  )
-
-  static let echoModel: Target = .target(
-    name: "EchoModel",
-    dependencies: [
-      .grpc,
-      .nio,
-      .protobuf,
-    ],
-    path: "Sources/Examples/Echo/Model",
-    exclude: [
-      "echo.proto",
-    ]
-  )
-
-  static let echoImplementation: Target = .target(
-    name: "EchoImplementation",
-    dependencies: [
-      .echoModel,
-      .grpc,
-      .nioCore,
-      .nioHTTP2,
-      .protobuf,
-    ],
-    path: "Sources/Examples/Echo/Implementation"
-  )
-
-  static let echo: Target = .executableTarget(
-    name: "Echo",
-    dependencies: [
-      .grpc,
-      .echoModel,
-      .echoImplementation,
-      .grpcSampleData,
-      .nioCore,
-      .nioPosix,
-      .logging,
-      .argumentParser,
-    ].appending(
-      .nioSSL, if: includeNIOSSL
-    ),
-    path: "Sources/Examples/Echo/Runtime"
-  )
-
-  static let helloWorldModel: Target = .target(
-    name: "HelloWorldModel",
-    dependencies: [
-      .grpc,
-      .nio,
-      .protobuf,
-    ],
-    path: "Sources/Examples/HelloWorld/Model",
-    exclude: [
-      "helloworld.proto",
-    ]
-  )
-
-  static let helloWorldClient: Target = .executableTarget(
-    name: "HelloWorldClient",
-    dependencies: [
-      .grpc,
-      .helloWorldModel,
-      .nioCore,
-      .nioPosix,
-      .argumentParser,
-    ],
-    path: "Sources/Examples/HelloWorld/Client"
-  )
-
-  static let helloWorldServer: Target = .executableTarget(
-    name: "HelloWorldServer",
-    dependencies: [
-      .grpc,
-      .helloWorldModel,
-      .nioCore,
-      .nioPosix,
-      .argumentParser,
-    ],
-    path: "Sources/Examples/HelloWorld/Server"
-  )
-
-  static let routeGuideModel: Target = .target(
-    name: "RouteGuideModel",
-    dependencies: [
-      .grpc,
-      .nio,
-      .protobuf,
-    ],
-    path: "Sources/Examples/RouteGuide/Model",
-    exclude: [
-      "route_guide.proto",
-    ]
-  )
-
-  static let routeGuideClient: Target = .executableTarget(
-    name: "RouteGuideClient",
-    dependencies: [
-      .grpc,
-      .routeGuideModel,
-      .nioCore,
-      .nioPosix,
-      .argumentParser,
-    ],
-    path: "Sources/Examples/RouteGuide/Client"
-  )
-
-  static let routeGuideServer: Target = .executableTarget(
-    name: "RouteGuideServer",
-    dependencies: [
-      .grpc,
-      .routeGuideModel,
-      .nioCore,
-      .nioConcurrencyHelpers,
-      .nioPosix,
-      .argumentParser,
-    ],
-    path: "Sources/Examples/RouteGuide/Server"
-  )
-
-  static let packetCapture: Target = .executableTarget(
-    name: "PacketCapture",
-    dependencies: [
-      .grpc,
-      .echoModel,
-      .nioCore,
-      .nioPosix,
-      .nioExtras,
-      .argumentParser,
-    ],
-    path: "Sources/Examples/PacketCapture",
-    exclude: [
-      "README.md",
     ]
   )
 }
@@ -421,11 +199,6 @@ extension Product {
     name: cgrpcZlibProductName,
     targets: [cgrpcZlibTargetName]
   )
-
-  static let protocGenGRPCSwift: Product = .executable(
-    name: "protoc-gen-grpc-swift",
-    targets: ["protoc-gen-grpc-swift"]
-  )
 }
 
 // MARK: - Package
@@ -435,35 +208,15 @@ let package = Package(
   products: [
     .grpc,
     .cgrpcZlib,
-    .protocGenGRPCSwift,
   ],
   dependencies: packageDependencies,
   targets: [
     // Products
     .grpc,
     .cgrpcZlib,
-    .protocGenGRPCSwift,
 
     // Tests etc.
-    .grpcTests,
-    .interopTestModels,
-    .interopTestImplementation,
-    .interopTests,
-    .backoffInteropTest,
-    .perfTests,
     .grpcSampleData,
-
-    // Examples
-    .echoModel,
-    .echoImplementation,
-    .echo,
-    .helloWorldModel,
-    .helloWorldClient,
-    .helloWorldServer,
-    .routeGuideModel,
-    .routeGuideClient,
-    .routeGuideServer,
-    .packetCapture,
   ]
 )
 
